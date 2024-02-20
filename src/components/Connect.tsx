@@ -1,7 +1,6 @@
-import {useEffect, useState} from "react";
+import {useState} from "react";
 import {ConnectionMethod} from "models/ConnectionMethod.ts";
 import {useConnection} from "contexts/Connection.tsx";
-import {useCarInfoHistory} from "contexts/CarInfoHistory.tsx";
 import {useTranslation} from "react-i18next";
 import {tauri} from "@tauri-apps/api";
 
@@ -48,7 +47,6 @@ function ConnectSerialSettings({onPortChange}: ConnectSerialSettingsProps) {
 
 export default function Connect() {
     const {connect, disconnect, connecting, connectedDevice} = useConnection();
-    const {fetch, setFetch} = useCarInfoHistory();
     const [connectionType, setConnectionMethod] = useState<ConnectionMethod>(ConnectionMethod.WIFI);
     const [connectionParam, setConnectionParam] = useState<string>("127.0.0.1:50059");//"192.168.0.10:35000");
     const {t} = useTranslation();

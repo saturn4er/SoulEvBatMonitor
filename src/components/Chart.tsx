@@ -44,7 +44,7 @@ export default function Chart() {
     const powerDataset: ChartDataset<"line">[] = [
         {
             label: 'Power',
-            data: carInfoHistory.map((carInfo) => carInfo.batteryCurrent),
+            data: carInfoHistory.map((carInfo) => carInfo.battery_info.battery_current),
             borderColor: 'rgba(0, 0, 255, 1)',
         }
     ]

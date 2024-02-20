@@ -6,12 +6,10 @@ import {save, open} from "@tauri-apps/api/dialog";
 import {readTextFile, writeFile} from "@tauri-apps/api/fs";
 import {useSelectedHistoryElement} from "contexts/SelectedHistoryElement.ts";
 import {useTranslation} from "react-i18next";
-import {useConnection} from "contexts/Connection.tsx";
 
 function App() {
     //async set resizeable
     const {t} = useTranslation();
-    const {connect, disconnect, connecting, connectedDevice} = useConnection();
     const {fetch, setFetch} = useCarInfoHistory();
 
     const {carInfoHistory, setCarInfoHistory} = useCarInfoHistory();
