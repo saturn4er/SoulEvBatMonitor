@@ -6,7 +6,7 @@ import {CarInfoHistoryContextProvider} from "./contexts/CarInfoHistory.tsx";
 import {SelectedCellProvider} from "./contexts/SelectedCell.ts";
 import {ConnectionContextProvider} from "contexts/Connection.tsx";
 import {SelectedHistoryElementProvider} from "contexts/SelectedHistoryElement.ts";
-
+import 'utils/i18n';
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
         <SelectedCellProvider>

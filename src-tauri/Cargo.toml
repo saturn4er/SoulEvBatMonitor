@@ -20,6 +20,8 @@ thiserror = "1.0.56"
 rust-embed = "8.2.0"
 env_logger = "0.11.2"
 rand = { version = "0.8.5", features = [] }
+error-stack = "0.4.1"
+serialport = "4.3.0"
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem

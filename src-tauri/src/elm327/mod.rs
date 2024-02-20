@@ -8,24 +8,46 @@ use std::{
     collections::VecDeque,
     thread, time,
 };
+use std::io::Write;
+use error_stack::{Report, ResultExt};
 
 pub struct Elm327 {
     device: Box<dyn Transport>,
     buffer: VecDeque<u8>,
+    device_name: String,
+    transport_log: std::fs::File,
 }
 
+pub trait Command {
+    type Response;
+    fn serial_command(&self) -> String;
+    fn parse_result(&self, result: String) -> Result<Self::Response>;
+}
 
 impl Elm327 {
     pub fn new(transport: Box<dyn Transport>) -> Result<Self> {
+        let mut log_file = std::fs::File::create("transport.log").unwrap();
         let mut result = Elm327 {
             buffer: VecDeque::new(),
             device: transport,
+            device_name: "".to_string(),
+            transport_log: log_file,
         };
 
         result.init_device()?;
 
         Ok(result)
     }
+
+    pub fn get_connected_device_name(&self) -> String {
+        self.device_name.clone()
+    }
+
+    pub fn execute_command<J, T: Command<Response=J>>(&mut self, command: T)-> Result<J> {
+        let response = self.serial_cmd(&command.serial_command())?;
+        return command.parse_result(response)
+    }
+
 
     fn reset(&mut self) -> Result<()> {
         self.reset_ic()?;
@@ -34,37 +56,21 @@ impl Elm327 {
         Ok(())
     }
 
-    pub fn send_cmd(&mut self, data: &[u8]) -> Result<()> {
-        trace!("send_cmd: sending {:?}", std::str::from_utf8(data));
-        self.send_serial_str(
-            data.into_iter()
-                .flat_map(|v| format!("{:02X}", v).chars().collect::<Vec<char>>())
-                .collect::<String>()
-                .as_str(),
-        )
-    }
-
-    fn get_line(&mut self) -> Result<Option<Vec<u8>>> {
-        self.get_until(b'\n', false)
-    }
-
-    /// Read data until the ELM327's prompt character is printed
-    ///
-    /// This will receive the entire OBD-II response. The prompt signifies that the ELM327 is ready
-    /// for another command. If this is not called after each OBD-II command is sent, the prompt
-    /// character will come out of the receive queue later and because it is not valid hex this
-    /// could cause problems. If a timeout occurs, `Ok(None)` will be returned.
     pub fn get_response(&mut self) -> Result<Option<Vec<u8>>> {
-        self.get_until(b'>', true)
-    }
+        let response = self.get_until(b'>', true)?;
+        match &response {
+            Some(response) => {
+                let _ = self.transport_log.write(format!("read: '{}'\n", Self::unescape(&std::str::from_utf8(response.as_slice()).unwrap_or("").to_string())).as_bytes());
+            }
+            None => {
+                let _ = self.transport_log.write("read: !!!!!!!ERROR!!!!!!\n".as_bytes());
+            }
+        }
 
-    pub fn change_transport(&mut self, transport: Box<dyn Transport>) -> Result<()> {
-        self.device = transport;
-        self.init_device()
+        Ok(response)
     }
 
     fn init_device(&mut self) -> Result<()> {
-        self.device.init()?;
         self.connect()?;
         self.flush()?;
 
@@ -81,8 +87,9 @@ impl Elm327 {
     }
 
     fn connect(&mut self) -> Result<()> {
-        self.serial_cmd(" ")?;
-        thread::sleep(time::Duration::from_millis(500));
+        self.device.init().map_err(Elm327::map_transport_error)?;
+        self.device_name = self.serial_cmd(" ")?.replace("\n", "");
+        info!("connected to {}", &self.device_name);
         self.buffer.clear();
         self.reset()?;
 
@@ -109,7 +116,7 @@ impl Elm327 {
         );
         debug!(
             "reset_protocol: got OBD response {:?}",
-            self.send_cmd(&[0x01, 0x00])?
+            self.serial_cmd("01 00")?
         );
         self.flush()?;
         Ok(())
@@ -128,7 +135,7 @@ impl Elm327 {
     fn get_until(&mut self, end_byte: u8, allow_empty: bool) -> Result<Option<Vec<u8>>> {
         const TIMEOUT: time::Duration = time::Duration::from_secs(5);
 
-        trace!("get_until: getting until {}", String::from_utf8(vec![end_byte])?);
+        trace!("get_until: getting until {}", String::from_utf8(vec![end_byte]).unwrap());
 
         let mut buf = Vec::new();
         let start = time::Instant::now();
@@ -176,7 +183,7 @@ impl Elm327 {
 
     fn read_into_queue(&mut self) -> Result<()> {
         let mut buf = [0u8; 256];
-        let len = self.device.read(&mut buf)?;
+        let len = self.device.read(&mut buf).map_err(Elm327::map_transport_error)?;
         if len > 0 {
             self.buffer.extend(&buf[0..len]);
             trace!(
@@ -194,7 +201,9 @@ impl Elm327 {
         let response = self.get_response()?;
         match response {
             Some(response) => {
-                let result = String::from_utf8(response)?;
+                let result = String::from_utf8(response.clone())
+                    .change_context(Error::Communication)
+                    .attach_printable(format!("can't parse response to utf8 string: {:?}", response))?;
                 debug!("serial_cmd: got response '{:?}'", result);
                 let prefix = format!("{}\n", cmd);
                 if result.starts_with(&prefix) {
@@ -203,7 +212,7 @@ impl Elm327 {
                     Ok(result)
                 }
             }
-            None => Err(Error::Communication("No response".to_string())),
+            None => Err(Report::new(Error::Communication).attach_printable("No response received until timeout")),
         }
     }
 
@@ -211,12 +220,32 @@ impl Elm327 {
     fn send_serial_str(&mut self, data: &str) -> Result<()> {
         trace!("send_serial_str: sending {:?}", data);
 
+        let _ = self.transport_log.write(
+            format!("write: '{}'\n", Self::escape(&data.to_string())).as_bytes());
+
         let data = data.as_bytes();
 
-        self.device.write(data)?;
-        self.device.write(b"\r\n")?;
+        self.write(data)?;
+        self.write(b"\r\n")?;
+
 
         Ok(())
     }
-}
 
+    fn write(&mut self, data: &[u8]) -> Result<()> {
+        self.device.write(data).map_err(Elm327::map_transport_error)
+    }
+
+    fn map_transport_error(e: Report<transport::Error>) -> Report<Error> {
+        match e.current_context() {
+            transport::Error::NotConnected => e.change_context(Error::NotConnected),
+            _ => e.change_context(Error::Communication),
+        }
+    }
+    fn escape(val: &String) -> String {
+        val.replace("\r", "\\r").replace("\n", "\\n")
+    }
+    fn unescape(val: &String) -> String {
+        val.replace("\\r", "\r").replace("\\n", "\n")
+    }
+}

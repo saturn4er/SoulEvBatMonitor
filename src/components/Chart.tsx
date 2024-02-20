@@ -22,7 +22,7 @@ export default function Chart() {
     try {
         cellsDataset = Array.from({length: 96}, (_, index) => {
             let data = carInfoHistory.map((carInfo) => {
-                return +carInfo.cellsVoltages[index].toFixed(2);
+                return +carInfo.battery_info.cell_voltages[index].toFixed(2);
             });
             // myChart.data.datasets[i].borderColor = 'rgba(255, 0, 0, 1)'
             // myChart.data.datasets[i].order = 100;
@@ -56,7 +56,7 @@ export default function Chart() {
     return <Line
         redraw={false}
         data={{
-            labels: carInfoHistory.map((carInfo) => formatDate(carInfo.time)),
+            labels: carInfoHistory.map((carInfo) => formatDate(new Date(carInfo.time))),
             datasets: datasets,
         }}
         options={{

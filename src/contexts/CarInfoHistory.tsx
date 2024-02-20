@@ -59,19 +59,29 @@ export function CarInfoHistoryContextProvider({children}: { children: React.Reac
         setCarInfo([]);
     }
 
-    const {connectedDevice, getCarInfo} = useConnection()
+    const {connectedDevice, reconnect, getCarInfo} = useConnection()
     useEffect(() => {
         if (connectedDevice) {
             const interval = setInterval(async () => {
-                console.log(fetch)
                 if (fetch) {
-                    console.log("fetching")
-                    let carInfo = await getCarInfo();
-                    if(carInfo.cellsVoltages.some((v) => v == 0)){
-                        return
-                    }
+                    try {
+                        let carInfo = await getCarInfo();
+                        console.log(carInfo);
+                        if(carInfo.battery_info.cell_voltages.some((v) => v == 0)){
+                            return
+                        }
 
-                    addCarInfo(carInfo);
+                        addCarInfo(carInfo);
+                    } catch (e) {
+                        console.log(e)
+                        clearInterval(interval);
+                        try {
+                            console.log("reconnecting")
+                            await reconnect()
+                        } catch (e) {
+                            console.log("reconnect failed")
+                        }
+                    }
                 }
             }, 1000)
             return () => clearInterval(interval)

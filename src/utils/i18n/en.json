@@ -1,0 +1,14 @@
+{
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+  "connecting": "Connecting",
+  "save": "Save",
+  "load": "Load",
+  "clear": "Clear",
+  "address": "Address",
+  "device": "Device",
+  "average voltage": "Average voltage",
+  "start": "Start",
+  "stop": "Stop",
+  "connected_to": "Connected to"
+}

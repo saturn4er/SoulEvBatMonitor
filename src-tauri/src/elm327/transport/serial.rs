@@ -12,12 +12,12 @@ use super::{
 };
 
 
-pub struct WiFi {
+pub struct Serial {
     socket_addr: SocketAddr,
     stream: Option<TcpStream>,
 }
 
-impl WiFi {
+impl Serial {
     pub fn new(addr: &str) -> Result<Self> {
         let mut socket_addrs = addr
             .to_socket_addrs()
@@ -48,7 +48,7 @@ impl WiFi {
     }
 }
 
-impl Transport for WiFi {
+impl Transport for Serial {
     fn init(&mut self) -> Result<()> {
         let stream = TcpStream::connect_timeout(&self.socket_addr, Duration::from_secs(2))
             .attach_printable("Can't connect to tcp socket")
