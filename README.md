@@ -1,7 +1,9 @@
-# Tauri + React + Typescript
+# SoulEvBatMonitor
 
-This template should help get you started developing with Tauri, React and Typescript in Vite.
+This is a simple program that shows the battery cell voltages of the Kia Soul EV over time. 
+This can be helpful to find out if a cell is out of balance or degrading.
 
-## Recommended IDE Setup
+## Screenshots
 
-- [VS Code](https://code.visualstudio.com/) + [Tauri](https://marketplace.visualstudio.com/items?itemName=tauri-apps.tauri-vscode) + [rust-analyzer](https://marketplace.visualstudio.com/items?itemName=rust-lang.rust-analyzer)
+
+[![Screenshot](https://raw.githubusercontent.com/saturn4er/SoulEvBatMonitor/master/images/main_screen.jpg)](https://raw.githubusercontent.com/saturn4er/SoulEvBatMonitor/master/images/main_screen.jpg)
